@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 
 
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
     # 基础配置
     PROJECT_NAME: str = "FastAPI Template"
     API_V1_STR: str = "/api/v1"
-    API_PORT: int = 8001
+    API_PORT: int = int(os.environ.get("PORT", 8001))
     FRONTEND_URL: str = "http://localhost:3000"
 
     # Docker 端口配置（可选，用于 docker-compose）
