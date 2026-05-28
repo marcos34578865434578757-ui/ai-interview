@@ -1,34 +1,47 @@
 import os
-from app.route import create_app
 from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
-app = create_app()
 
-
-def run_migrations():
-    """启动时自动运行数据库迁移"""
+def create_tables():
+    """启动时同步创建所有数据库表（不依赖 alembic）"""
     try:
-        from alembic.config import Config
-        from alembic import command
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations completed successfully")
+        from sqlalchemy import create_engine, text
+        from app.db.models import Base
+        import app.models.user
+        import app.models.token
+        import app.models.admin
+        import app.models.waiting_list
+        import app.models.resume
+        import app.models.interview
+        import app.models.interview_message
+
+        # 使用同步 psycopg2 连接创建表
+        sync_url = (
+            f"postgresql+psycopg2://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
+            f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+        )
+        engine = create_engine(sync_url, pool_pre_ping=True)
+        Base.metadata.create_all(bind=engine)
+        engine.dispose()
+        logger.info("Database tables created successfully")
     except Exception as e:
-        logger.warning(f"Auto migration skipped: {e}")
+        logger.error(f"Database table creation failed: {e}")
 
 
 if __name__ == "__main__":
     import uvicorn
+    from app.route import create_app
 
     port = int(os.environ.get("PORT", settings.API_PORT))
 
-    run_migrations()
+    create_tables()
 
+    app = create_app()
     uvicorn.run(
-        "main:app",
+        app,
         host="0.0.0.0",
         port=port,
         reload=False,
