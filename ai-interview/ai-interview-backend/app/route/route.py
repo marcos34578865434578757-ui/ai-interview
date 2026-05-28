@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 # 根据环境设置CORS来源
 ALLOWED_ORIGINS = ["*"] if settings.ENV == "development" or settings.ENV == "preview" else [
-    "*"  # TODO: 替换为生产环境域名
+    "https://ai-interview-2a0ce.web.app",
+    "https://ai-interview-2a0ce.firebaseapp.com",
 ]
 
 

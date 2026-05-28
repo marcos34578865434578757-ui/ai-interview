@@ -22,7 +22,8 @@ from app.configs.backoffice_swagger_config import (
 
 # 根据环境设置CORS来源
 ALLOWED_ORIGINS = ["*"] if settings.ENV == "development" or settings.ENV == "preview" else [
-    "*"  # TODO: replace with production domain
+    "https://ai-interview-2a0ce.web.app",
+    "https://ai-interview-2a0ce.firebaseapp.com",
 ]
 
 def create_client_app() -> FastAPI:
