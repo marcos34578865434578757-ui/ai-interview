@@ -6,6 +6,7 @@ from .models import Base
 SQLALCHEMY_DATABASE_URL = (
     f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
     f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+    f"?sslmode=require"
 )
 
 # 延迟创建引擎，避免 Alembic 迁移时的导入问题
