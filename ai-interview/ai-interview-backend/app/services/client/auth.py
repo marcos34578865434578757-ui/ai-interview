@@ -56,7 +56,7 @@ class ClientAuthService(AuthBase):
             # 验证密码强度
             ClientAuthService.validate_password(user_data["password"])
 
-            # 创建用户（未验证状态）
+            # 创建用户（已验证状态，跳过邮箱验证）
             user = User(
                 email=user_data["email"],
                 hashed_password=User.get_password_hash(user_data["password"]),
@@ -69,31 +69,44 @@ class ClientAuthService(AuthBase):
                 contract_types=user_data.get("contract_types"),
                 location=user_data.get("location"),
                 is_active=True,
-                is_verified=False
+                is_verified=True
             )
 
             db.add(user)
             await db.flush()
 
-            # 发送验证码
-            await redis_verification_service.check_send_rate_limit(user_data["email"])
-            code = await redis_verification_service.generate_and_store_code(
-                user_data["email"], "registration", user.id
+            # 直接生成令牌登录
+            access_token = AuthBase.create_access_token(
+                str(user.id),
+                scope="client",
+                expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
             )
+            refresh_token = AuthBase.create_refresh_token(str(user.id))
 
-            # 异步发送邮件
-            send_verification_email_task.delay(
-                user_data["email"],
-                code,
-                "registration",
-                user_data.get("first_name")
+            # 存储 refresh token
+            hashed_token = AuthBase.hash_token(refresh_token)
+            token = Token(
+                user_id=user.id,
+                token=hashed_token,
+                expires_at=datetime.now(UTC) + timedelta(days=7),
+                is_active=True
             )
+            db.add(token)
 
             return {
-                "user_id": user.id,
-                "email": user.email,
-                "message": "注册成功，请验证邮箱",
-                "verification_required": True
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_verified": True,
+                    "university": user.university,
+                    "career_goal": user.career_goal,
+                    "location": user.location
+                }
             }
 
     @staticmethod
