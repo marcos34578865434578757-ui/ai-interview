@@ -143,47 +143,61 @@ def create_app():
     os.makedirs("uploads/avatars", exist_ok=True)
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+    def add_cors_headers(request: Request, response):
+        """给响应添加 CORS 头"""
+        origin = request.headers.get("origin", "")
+        if origin in ALLOWED_ORIGINS or "*" in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
     @app.exception_handler(APIException)
     async def api_exception_handler(request: Request, exc: APIException):
         logger.error(f"API Exception: {exc.status_code} - {exc.code} - {exc.detail}",
                     extra={"request": f"{request.method} {request.url}"})
-        return ApiResponse.failed(
+        response = ApiResponse.failed(
             message=exc.detail,
-            body_code=exc.code,  # 业务错误码
+            body_code=exc.code,
             http_code=exc.status_code,
             data=exc.data
         )
+        return add_cors_headers(request, response)
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         logger.error(f"HTTP Exception: {exc.status_code} - {exc.detail}",
                     extra={"request": f"{request.method} {request.url}"})
-        return ApiResponse.failed(
+        response = ApiResponse.failed(
             message=exc.detail,
-            body_code=exc.status_code,  # 回落使用 HTTP 状态码
+            body_code=exc.status_code,
             http_code=exc.status_code,
             data=None
         )
+        return add_cors_headers(request, response)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         logger.warning(f"Validation Error: {exc.errors()}",
                     extra={"request": f"{request.method} {request.url}"})
-        return ApiResponse.failed(
+        response = ApiResponse.failed(
             message="参数验证错误",
             body_code=1001,
             http_code=status.HTTP_400_BAD_REQUEST,
             data=exc.errors()
         )
+        return add_cors_headers(request, response)
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         logger.exception(f"Unhandled Exception: {str(exc)}",
                         extra={"request": f"{request.method} {request.url}"})
-        return ApiResponse.failed(
+        response = ApiResponse.failed(
             message="服务器内部错误",
             body_code=1005,
             http_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+        return add_cors_headers(request, response)
 
     return app
